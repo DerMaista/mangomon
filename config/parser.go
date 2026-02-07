@@ -10,22 +10,20 @@ import (
 
 // MonitorRule represents a single monitorrule line in the config
 type MonitorRule struct {
-	ID            string
-	MFact         float64
-	NMaster       int
-	Layout        string
-	Transform     int
-	Scale         float64
-	X, Y          int
-	Width, Height int
-	RefreshRate   float64
+	ID                  string
+	Transform           int
+	Scale               float64
+	X, Y                int
+	Width, Height       int
+	RefreshRate         float64
+	VariableRefreshRate int // 0 or 1
 }
 
 // ToString converts the rule back to the config string format
 func (r MonitorRule) ToString() string {
-	// monitorrule=name,mfact,nmaster,layout,transform,scale,x,y,width,height,refreshrate
-	return fmt.Sprintf("monitorrule=%s,%.2f,%d,%s,%d,%.2f,%d,%d,%d,%d,%.0f",
-		r.ID, r.MFact, r.NMaster, r.Layout, r.Transform, r.Scale, r.X, r.Y, r.Width, r.Height, r.RefreshRate)
+	// monitorrule=name:eDP-1,width:1920,height:1080,refresh:60,x:0,y:0,scale:1.0,vrr:0,rr:0
+	return fmt.Sprintf("monitorrule=name:%s,width:%d,height:%d,refresh:%.0f,x:%d,y:%d,scale:%.2f,vrr:%d,rr:%d",
+		r.ID, r.Width, r.Height, r.RefreshRate, r.X, r.Y, r.Scale, r.VariableRefreshRate, r.Transform)
 }
 
 // ConfigParser handles reading and writing the MangoWC config
@@ -67,32 +65,40 @@ func (p *ConfigParser) Parse() (map[string]MonitorRule, error) {
 			val := strings.TrimPrefix(trimmed, "monitorrule=")
 			parts := strings.Split(val, ",")
 
-			// Expected format: ID, MFact, NMaster, Layout, Transform, Scale, X, Y, W, H, Rate
-			// Example: eDP-1,0.55,1,tile,0,1,0,0,1920,1080,60
-			if len(parts) >= 11 {
-				mfact, _ := strconv.ParseFloat(parts[1], 64)
-				nmaster, _ := strconv.Atoi(parts[2])
-				trans, _ := strconv.Atoi(parts[4])
-				scale, _ := strconv.ParseFloat(parts[5], 64)
-				x, _ := strconv.Atoi(parts[6])
-				y, _ := strconv.Atoi(parts[7])
-				w, _ := strconv.Atoi(parts[8])
-				h, _ := strconv.Atoi(parts[9])
-				rate, _ := strconv.ParseFloat(parts[10], 64)
-
-				rule := MonitorRule{
-					ID:          parts[0],
-					MFact:       mfact,
-					NMaster:     nmaster,
-					Layout:      parts[3],
-					Transform:   trans,
-					Scale:       scale,
-					X:           x,
-					Y:           y,
-					Width:       w,
-					Height:      h,
-					RefreshRate: rate,
+			// Expected format: key:value pairs
+			// Example: name:eDP-1,width:1920,height:1080,refresh:60,x:0,y:0,scale:1.0,vrr:0,rr:0
+			rule := MonitorRule{}
+			for _, part := range parts {
+				kv := strings.Split(strings.TrimSpace(part), ":")
+				if len(kv) != 2 {
+					continue
 				}
+				key := strings.TrimSpace(kv[0])
+				val := strings.TrimSpace(kv[1])
+
+				switch key {
+				case "name":
+					rule.ID = val
+				case "width":
+					rule.Width, _ = strconv.Atoi(val)
+				case "height":
+					rule.Height, _ = strconv.Atoi(val)
+				case "refresh":
+					rule.RefreshRate, _ = strconv.ParseFloat(val, 64)
+				case "x":
+					rule.X, _ = strconv.Atoi(val)
+				case "y":
+					rule.Y, _ = strconv.Atoi(val)
+				case "scale":
+					rule.Scale, _ = strconv.ParseFloat(val, 64)
+				case "vrr":
+					rule.VariableRefreshRate, _ = strconv.Atoi(val)
+				case "rr":
+					rule.Transform, _ = strconv.Atoi(val)
+				}
+			}
+
+			if rule.ID != "" {
 				rules[rule.ID] = rule
 			}
 		}

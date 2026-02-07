@@ -18,7 +18,7 @@ const (
 	stateMode
 	stateMirror
 	stateTransform
-	stateLayout
+	stateVRR
 )
 
 type Model struct {
@@ -36,7 +36,7 @@ type Model struct {
 	modePicker      tools.ModePickerModel
 	mirrorPicker    tools.MirrorPickerModel
 	transformPicker tools.TransformPickerModel
-	layoutPicker    tools.LayoutPickerModel
+	vrrPicker       tools.VRRPickerModel
 
 	width, height int
 }
@@ -54,13 +54,11 @@ func InitialModel(parser *config.ConfigParser) Model {
 	for _, out := range outputs {
 		if _, ok := rules[out.Name]; !ok {
 			rules[out.Name] = config.MonitorRule{
-				ID:        out.Name,
-				MFact:     0.55,
-				NMaster:   1,
-				Scale:     1.0,
-				Transform: 0,
-				Layout:    "tile",
-				X:         0, Y: 0,
+				ID:                  out.Name,
+				Scale:               1.0,
+				Transform:           0,
+				VariableRefreshRate: 0,
+				X:                   0, Y: 0,
 				Width: 1920, Height: 1080, RefreshRate: 60,
 			}
 		}
@@ -133,18 +131,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tools.MirrorSelectedMsg:
-		// Logic to mirror: Set Source's monitorrule to be a mirror?
-		// MangoWC mirror syntax: monitorrule=Source,mirror,Target
-		// Or similar. Wait, Hyprmon does mirroring.
-		// Hyprmon mirroring often means setting "source" to have same pos/res as "target"
-		// OR using a specific `monitor=Source,mirror,Target` line in Hyprland.
-		// MangoWC: `monitorrule=HDMI-A-1,mirror,eDP-1` ?
-		// I need to verify MangoWC mirror syntax. Assuming simple syntax for now or logging it.
-		// For now, let's just create a Layout="mirror:Target" rule to denote it?
-
+		// Align position and resolution to target
 		if rule, ok := m.rules[m.grid.SelectedID]; ok {
-			rule.Layout = "mirror:" + msg.TargetID
-			// Align position to target?
 			if target, ok := m.rules[msg.TargetID]; ok {
 				rule.X = target.X
 				rule.Y = target.Y
@@ -173,16 +161,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateGrid
 		return m, nil
 
-	case tools.LayoutSelectedMsg:
+	case tools.VRRSelectedMsg:
 		if rule, ok := m.rules[m.grid.SelectedID]; ok {
-			rule.Layout = msg.Layout
+			rule.VariableRefreshRate = msg.VRR
 			m.rules[m.grid.SelectedID] = rule
 		}
 		m.state = stateGrid
 		m.grid.Rules = &m.rules
 		return m, nil
 
-	case tools.LayoutCancelledMsg:
+	case tools.VRRCancelledMsg:
 		m.state = stateGrid
 		return m, nil
 
@@ -208,9 +196,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		newModel, cmd := m.transformPicker.Update(msg)
 		m.transformPicker = newModel.(tools.TransformPickerModel)
 		return m, cmd
-	case stateLayout:
-		newModel, cmd := m.layoutPicker.Update(msg)
-		m.layoutPicker = newModel.(tools.LayoutPickerModel)
+	case stateVRR:
+		newModel, cmd := m.vrrPicker.Update(msg)
+		m.vrrPicker = newModel.(tools.VRRPickerModel)
 		return m, cmd
 	}
 
@@ -319,10 +307,10 @@ func (m Model) updateGrid(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.transformPicker = tools.NewTransformPicker(rule.ID, rule.Transform)
 			}
 
-		case "Y", "y": // Open Layout Picker
+		case "V", "v": // Open VRR Picker
 			if rule, ok := m.rules[m.grid.SelectedID]; ok {
-				m.state = stateLayout
-				m.layoutPicker = tools.NewLayoutPicker(rule.ID, rule.Layout)
+				m.state = stateVRR
+				m.vrrPicker = tools.NewVRRPicker(rule.ID, rule.VariableRefreshRate)
 			}
 
 		case "S", "s": // Save
@@ -360,8 +348,8 @@ func (m Model) View() string {
 		return m.mirrorPicker.View()
 	case stateTransform:
 		return m.transformPicker.View()
-	case stateLayout:
-		return m.layoutPicker.View()
+	case stateVRR:
+		return m.vrrPicker.View()
 	}
 	return ""
 }
@@ -374,7 +362,7 @@ func (m Model) viewGrid() string {
 
 	content := m.grid.Render(m.width, h)
 
-	footer := "[Tab] Cycle  [Arrows] Move  [G] Grid  [R] Scale  [F] Mode  [Y] Layout  [T] Transform  [M] Mirror  [S] Save  [Q] Quit"
+	footer := "[Tab] Cycle  [Arrows] Move  [G] Grid  [R] Scale  [F] Mode  [T] Transform  [V] VRR  [M] Mirror  [S] Save  [Q] Quit"
 	if m.err != nil {
 		footer = fmt.Sprintf("Error: %v", m.err)
 	}
