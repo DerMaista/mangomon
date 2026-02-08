@@ -7,9 +7,9 @@ A TUI for configuring MangoWC monitor rules. Similar to hyprmon for Hyprland.
 - Spatial monitor arrangement with arrow keys
 - Resolution and refresh rate selection (reads from `/sys/class/drm`)
 - Scale adjustment
-- Monitor-Specific Layout selection (tile, scroller, grid, deck, monocle, etc.)
 - Transform/rotation editing
 - Mirror configuration
+- Variable Refresh Rate
 
 ## Installation
 
@@ -41,8 +41,8 @@ Run `mangomon` and use the following keys:
 | G | Cycle grid size |
 | R | Open scale picker |
 | F | Open resolution/mode picker |
-| Y | Open layout picker |
 | T | Open transform/rotation picker |
+| V | Open VRR picker |
 | M | Open mirror picker |
 | S | Save config |
 | Q | Quit |
