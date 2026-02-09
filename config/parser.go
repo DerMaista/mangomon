@@ -36,7 +36,7 @@ func NewParser(path string) (*ConfigParser, error) {
 	// Default fallback if path is empty
 	if path == "" {
 		home, _ := os.UserHomeDir()
-		path = home + "/.config/mango/config.conf"
+		path = home + "/.config/mango/testmonitors.conf"
 	}
 	return &ConfigParser{FilePath: path}, nil
 }
@@ -126,7 +126,16 @@ func (p *ConfigParser) Save(newRules []MonitorRule) error {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "monitorrule=") {
 			// Check if this line corresponds to one of our new rules
-			currentID := strings.Split(strings.TrimPrefix(trimmed, "monitorrule="), ",")[0]
+			// Extract the monitor ID from the line
+			// Format: monitorrule=name:eDP-1,width:...
+			parts := strings.Split(strings.TrimPrefix(trimmed, "monitorrule="), ",")
+			var currentID string
+			if len(parts) > 0 {
+				namePart := strings.Split(parts[0], ":")
+				if len(namePart) >= 2 {
+					currentID = namePart[1]
+				}
+			}
 
 			foundRequest := false
 			for _, nr := range newRules {
